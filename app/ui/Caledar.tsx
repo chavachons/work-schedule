@@ -1,0 +1,165 @@
+"use client";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
+import { EventClickArg, EventContentArg } from "@fullcalendar/core/index.js";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  useDisclosure,
+} from "@nextui-org/react";
+import { useEffect, useRef, useState } from "react";
+import { Checkbox } from "@nextui-org/react";
+import { getSchedule } from "@/lib/schedule";
+import moment from "moment";
+
+interface Schedule {
+  id: string;
+  date: string;
+  period: string;
+}
+export default function Calendar() {
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
+
+  const calendarRef = useRef(null);
+  const [dateSelected, setDateSelected] = useState<string | null>(null);
+  const [data, setData] = useState<Schedule[]>([]);
+  const [workPeriod, setWorkPeriod] = useState([
+    { value: "morning", label: "🌥 เช้า", isSelected: false },
+    { value: "noon", label: "☀️ บ่าย", isSelected: false },
+    { value: "night", label: "🌙 ดึก", isSelected: false },
+    { value: "off", label: "🥰 หยุด", isSelected: false },
+  ]);
+
+  const eventManager = (date: Date | string) => {
+    const mDate = moment(date);
+    setDateSelected(mDate.format("YYYY-MM-DD"));
+    const dateEvents = data.filter((event) => mDate.isSame(event.date, "date"));
+    const activePeriod = dateEvents.map((event) => event.period);
+    const activeWorkPeriod = workPeriod.map((event) => {
+      return {
+        ...event,
+        isSelected: activePeriod.includes(event.value),
+      };
+    });
+    setWorkPeriod(activeWorkPeriod);
+    onOpen();
+  };
+  const handleDateClick = (arg: DateClickArg) => {
+    eventManager(arg.dateStr);
+  };
+  const handleEventClick = (arg: EventClickArg) => {
+    eventManager(arg.event.start!);
+  };
+  const updateSelectStatus = (index: number, isSelected: boolean) => {
+    setWorkPeriod(
+      workPeriod.map((event, currentIndex) =>
+        currentIndex === index ? { ...event, isSelected } : event
+      )
+    );
+  };
+  const clearSelectStatus = () => {
+    setWorkPeriod(
+      workPeriod.map((event) => {
+        return { ...event, isSelected: false };
+      })
+    );
+  };
+
+  const saveWork = () => {
+    const selectedWork = workPeriod.filter((event) => event.isSelected);
+    if (selectedWork.length === 0) {
+      alert("กรุณาเลือกช่องทางการทำงาน");
+    }
+    console.log(selectedWork);
+    onClose();
+  };
+
+  const getData = async () => {
+    const data = await getSchedule();
+    const scheduleData = data.map((i) => {
+      const dateTimeToDate = moment(i.date).format("YYYY-MM-DD");
+      const title = workPeriod.find((p) => p.value === i.period)?.label;
+      return { ...i, date: dateTimeToDate, title };
+    });
+    setData(scheduleData);
+  };
+
+  useEffect(() => {
+    getData();
+  }, []);
+
+  return (
+    <div className="w-screen p-2">
+      <FullCalendar
+        ref={calendarRef}
+        plugins={[dayGridPlugin, interactionPlugin]}
+        editable
+        selectable
+        initialView="dayGridMonth"
+        contentHeight="auto"
+        dateClick={handleDateClick}
+        eventClick={handleEventClick}
+        eventContent={renderEventContent}
+        events={data}
+      />
+      <Modal
+        isOpen={isOpen}
+        onClose={clearSelectStatus}
+        onOpenChange={onOpenChange}
+        backdrop="blur"
+        isDismissable={false}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                {dateSelected}
+              </ModalHeader>
+              <ModalBody>
+                <div className="flex flex-col gap-4">
+                  {workPeriod.map((workPeriod, index) => {
+                    return (
+                      <Checkbox
+                        size="lg"
+                        key={workPeriod.value}
+                        value={workPeriod.value}
+                        isSelected={workPeriod.isSelected}
+                        onValueChange={(isSelected: boolean) =>
+                          updateSelectStatus(index, isSelected)
+                        }
+                      >
+                        {workPeriod.label}
+                      </Checkbox>
+                    );
+                  })}
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="danger" variant="light" onPress={onClose}>
+                  Close
+                </Button>
+                <Button color="primary" onPress={saveWork}>
+                  Save
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+    </div>
+  );
+}
+
+function renderEventContent(eventInfo: EventContentArg) {
+  return (
+    <>
+      <b>{eventInfo.timeText}</b>
+      <div className="tex-center">{eventInfo.event.title}</div>
+    </>
+  );
+}
