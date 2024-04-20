@@ -14,20 +14,16 @@ import {
 } from "@nextui-org/react";
 import { useEffect, useRef, useState } from "react";
 import { Checkbox } from "@nextui-org/react";
-import { getSchedule } from "@/lib/schedule";
+import { getSchedule, ISchedule, updateWorkSchedule } from "@/lib/schedule";
 import moment from "moment";
 
-interface Schedule {
-  id: string;
-  date: string;
-  period: string;
-}
 export default function Calendar() {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
 
   const calendarRef = useRef(null);
+  const [submiting, setSubmiting] = useState<boolean>(false);
   const [dateSelected, setDateSelected] = useState<string | null>(null);
-  const [data, setData] = useState<Schedule[]>([]);
+  const [data, setData] = useState<ISchedule[]>([]);
   const [workPeriod, setWorkPeriod] = useState([
     { value: "morning", label: "🌥 เช้า", isSelected: false },
     { value: "noon", label: "☀️ บ่าย", isSelected: false },
@@ -70,21 +66,31 @@ export default function Calendar() {
     );
   };
 
-  const saveWork = () => {
+  const saveWork = async () => {
+    setSubmiting(true);
     const selectedWork = workPeriod.filter((event) => event.isSelected);
     if (selectedWork.length === 0) {
       alert("กรุณาเลือกช่องทางการทำงาน");
+      setSubmiting(false);
+      return;
     }
-    console.log(selectedWork);
+    const dataInsert = selectedWork.map((workPeriod) => {
+      return {
+        date: new Date(dateSelected!),
+        period: workPeriod.value,
+      };
+    });
+    await updateWorkSchedule(dataInsert);
+    await getData();
+    setSubmiting(false);
     onClose();
   };
 
   const getData = async () => {
     const data = await getSchedule();
     const scheduleData = data.map((i) => {
-      const dateTimeToDate = moment(i.date).format("YYYY-MM-DD");
       const title = workPeriod.find((p) => p.value === i.period)?.label;
-      return { ...i, date: dateTimeToDate, title };
+      return { ...i, title };
     });
     setData(scheduleData);
   };
@@ -143,7 +149,11 @@ export default function Calendar() {
                 <Button color="danger" variant="light" onPress={onClose}>
                   Close
                 </Button>
-                <Button color="primary" onPress={saveWork}>
+                <Button
+                  isLoading={submiting}
+                  color="primary"
+                  onPress={saveWork}
+                >
                   Save
                 </Button>
               </ModalFooter>
@@ -158,7 +168,7 @@ export default function Calendar() {
 function renderEventContent(eventInfo: EventContentArg) {
   return (
     <>
-      <b>{eventInfo.timeText}</b>
+      {/* <b>{eventInfo.timeText}</b> */}
       <div className="tex-center">{eventInfo.event.title}</div>
     </>
   );
