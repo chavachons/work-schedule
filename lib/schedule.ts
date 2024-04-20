@@ -13,13 +13,11 @@ export const getSchedule = cache(async () => {
   return item;
 });
 
-export async function updateWorkSchedule(schedules: ISchedule[]) {
+export async function updateWorkSchedule(date: Date, schedules: ISchedule[]) {
   try {
-    if (!schedules.length) return;
-    const dateToDelete = schedules[0].date;
     const deleteSchedules = prisma.schedule.deleteMany({
       where: {
-        date: dateToDelete,
+        date,
       },
     });
     const createSchedules = prisma.schedule.createMany({

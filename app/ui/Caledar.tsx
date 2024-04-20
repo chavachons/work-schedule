@@ -13,7 +13,7 @@ import {
   useDisclosure,
 } from "@nextui-org/react";
 import { useEffect, useRef, useState } from "react";
-import { Checkbox } from "@nextui-org/react";
+import { Checkbox, Spinner } from "@nextui-org/react";
 import { getSchedule, ISchedule, updateWorkSchedule } from "@/lib/schedule";
 import moment from "moment";
 
@@ -21,6 +21,7 @@ export default function Calendar() {
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
 
   const calendarRef = useRef(null);
+  const [loading, setLoading] = useState<boolean>(false);
   const [submiting, setSubmiting] = useState<boolean>(false);
   const [dateSelected, setDateSelected] = useState<string | null>(null);
   const [data, setData] = useState<ISchedule[]>([]);
@@ -68,31 +69,37 @@ export default function Calendar() {
 
   const saveWork = async () => {
     setSubmiting(true);
-    const selectedWork = workPeriod.filter((event) => event.isSelected);
-    if (selectedWork.length === 0) {
-      alert("กรุณาเลือกช่องทางการทำงาน");
+    try {
+      const date = new Date(dateSelected!);
+      const selectedWork = workPeriod.filter((event) => event.isSelected);
+      const dataInsert = selectedWork.map((workPeriod) => {
+        return {
+          date,
+          period: workPeriod.value,
+        };
+      });
+      await updateWorkSchedule(date, dataInsert);
+      await getData();
       setSubmiting(false);
-      return;
+      onClose();
+    } catch (error) {
+      setSubmiting(false);
     }
-    const dataInsert = selectedWork.map((workPeriod) => {
-      return {
-        date: new Date(dateSelected!),
-        period: workPeriod.value,
-      };
-    });
-    await updateWorkSchedule(dataInsert);
-    await getData();
-    setSubmiting(false);
-    onClose();
   };
 
   const getData = async () => {
-    const data = await getSchedule();
-    const scheduleData = data.map((i) => {
-      const title = workPeriod.find((p) => p.value === i.period)?.label;
-      return { ...i, title };
-    });
-    setData(scheduleData);
+    setLoading(true);
+    try {
+      const data = await getSchedule();
+      const scheduleData = data.map((i) => {
+        const title = workPeriod.find((p) => p.value === i.period)?.label;
+        return { ...i, title };
+      });
+      setData(scheduleData);
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -101,18 +108,25 @@ export default function Calendar() {
 
   return (
     <div className="w-screen p-2">
-      <FullCalendar
-        ref={calendarRef}
-        plugins={[dayGridPlugin, interactionPlugin]}
-        editable
-        selectable
-        initialView="dayGridMonth"
-        contentHeight="auto"
-        dateClick={handleDateClick}
-        eventClick={handleEventClick}
-        eventContent={renderEventContent}
-        events={data}
-      />
+      {loading ? (
+        <div className="flex justify-center">
+          <Spinner label="Loading..." color="warning" />
+        </div>
+      ) : (
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[dayGridPlugin, interactionPlugin]}
+          editable
+          selectable
+          initialView="dayGridMonth"
+          contentHeight="auto"
+          dateClick={handleDateClick}
+          eventClick={handleEventClick}
+          eventContent={renderEventContent}
+          events={data}
+        />
+      )}
+
       <Modal
         isOpen={isOpen}
         onClose={clearSelectStatus}
