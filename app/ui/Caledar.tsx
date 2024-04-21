@@ -29,6 +29,11 @@ export default function Calendar() {
     { value: "morning", label: "🌥 เช้า", isSelected: false },
     { value: "noon", label: "☀️ บ่าย", isSelected: false },
     { value: "night", label: "🌙 ดึก", isSelected: false },
+    { value: "morning-ot", label: "🌥 เช้า OT", isSelected: false },
+    { value: "noon-ot", label: "☀️ บ่าย OT", isSelected: false },
+    { value: "night-ot", label: "🌙 ดึก OT", isSelected: false },
+    { value: "training", label: "🧑🏻‍🎓 อบรม", isSelected: false },
+    { value: "meeting", label: "👩🏻‍💻 ประชุม", isSelected: false },
     { value: "off", label: "🥰 หยุด", isSelected: false },
   ]);
 
